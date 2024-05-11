@@ -7,8 +7,8 @@ import cv2
 
 def audio_stream(queue):
     fs = 44100  # Sample rate
-    duration = 1  # Duration of chunks in seconds
-
+    duration = 30  # Duration of chunks in seconds
+    
     def callback(indata, frames, time, status):
         if status:
             print(status)
@@ -16,26 +16,31 @@ def audio_stream(queue):
 
     with sd.InputStream(samplerate=fs, channels=1, callback=callback):
         print("Streaming started...")
-        sd.sleep(int(duration * 1000))  # duration in milliseconds
+
+        
 
 def feature_extraction(queue):
+    # Initialize variables for continuous feature extraction
+    fs = 44100  # Sample rate
+    hop_length = 512  # Hop length for feature extraction
+    
     while True:
         audio_chunk = queue.get()
         if audio_chunk is not None:
+            # Convert the audio chunk to floating-point values
+            audio_chunk = audio_chunk.astype(np.float32)
+            
             # Normalize the audio chunk
             max_abs = np.max(np.abs(audio_chunk))
             if max_abs > 0:
                 audio_chunk /= max_abs
             
             print("Processing a new audio chunk...")
-            # Check if the audio chunk is long enough for processing
-            if len(audio_chunk) < 2048:
-                print("Audio chunk is too short for feature extraction.")
-                continue
             
-            rms_energy = librosa.feature.rms(y=audio_chunk).mean()
-            spectral_centroid = librosa.feature.spectral_centroid(y=audio_chunk, sr=44100).mean()
-            zcr = librosa.feature.zero_crossing_rate(y=audio_chunk).mean()
+            # Extract features from the entire audio chunk
+            rms_energy = np.mean(librosa.feature.rms(y=audio_chunk, hop_length=hop_length))
+            spectral_centroid = np.mean(librosa.feature.spectral_centroid(y=audio_chunk, sr=fs, hop_length=hop_length))
+            zcr = np.mean(librosa.feature.zero_crossing_rate(y=audio_chunk, hop_length=hop_length))
 
             features = {
                 'RMS Energy': rms_energy,
